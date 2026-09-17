@@ -1,37 +1,60 @@
 # win-tools
 
-Windows PC 向けの、普段使いの便利ツール集（PowerShell スクリプト中心）。
+Windows PC 向けの、普段使いの便利ツール集です。
 
 ## ツール一覧
 
-| スクリプト | 説明 |
+| ツール | 説明 |
 |---|---|
-| [`Resize-Images.ps1`](./Resize-Images.ps1) | フォルダ内の画像を長辺指定サイズにリサイズ（対話 / 非対話） |
+| [画像リサイズ](./Resize-Images.cmd) | フォルダ内の画像を、選んだサイズにまとめて縮小する |
 
 ## 前提
 
 - Windows 10 / 11
-- PowerShell 5.1 以上（Windows PowerShell または PowerShell 7+）
-- 一部ツールは [winget](https://learn.microsoft.com/windows/package-manager/winget/) で依存を自動導入します
+- 初回のみ、ImageMagick の導入確認が出ることがあります（画面の指示に従ってください）
 
-## Resize-Images.ps1
+## 画像リサイズ（Resize-Images）
 
-フォルダ直下の画像（JPEG / PNG / WebP / GIF / BMP / TIFF）を、長辺が指定ピクセルに収まるよう縮小します。ImageMagick が無ければ winget で導入します。
+フォルダ直下の JPEG / PNG / WebP / GIF / BMP / TIFF を、長辺が指定ピクセルに収まるよう縮小します。結果は `1200` のようなサイズ名フォルダへ保存されます。
+
+必要なファイルは **`Resize-Images.cmd` だけ** です。
 
 ### 使い方
 
-```powershell
-# 対話モード（サイズ・品質をメニューで選択）
-.\Resize-Images.ps1
+1. [win-tools の GitHub](https://github.com/inovue/win-tools) を開き、**Code** → **Download ZIP**
+2. ZIP を展開し、`Resize-Images.cmd` を「リサイズしたい画像があるフォルダ」へコピー
+3. `Resize-Images.cmd` を右クリック → **プロパティ** → **ブロックの解除** にチェック → **OK**  
+   （表示されない場合はそのまま次へ）
+4. **`Resize-Images.cmd` をダブルクリック**
+5. メニューでサイズと品質を選んで実行
 
-# ヘルプ
-.\Resize-Images.ps1 -Help
+終わると「続行するには何かキーを押してください…」と出るので、キーを押して閉じてください。
 
-# 非対話（バッチ向け）
-.\Resize-Images.ps1 -NonInteractive -MaxSize 1200 -Quality 85
+### うまくいかないとき
+
+| 症状 | 対処 |
+|---|---|
+| 「Windows によって PC が保護されました」 | **詳細情報** → **実行** |
+| プロパティに「ブロックの解除」がある | チェックを入れてから再実行 |
+| 対象画像がありません | 画像をフォルダの直下に置く（サブフォルダは対象外） |
+
+### コマンドライン（上級者向け）
+
+```text
+Resize-Images.cmd -Help
+Resize-Images.cmd -NonInteractive -MaxSize 1200 -Quality 85
+Resize-Images.cmd -Path "D:\photos" -NonInteractive -MaxSize 1200 -Quality 85
+Resize-Images.cmd -InPlace -Backup -NonInteractive -MaxSize 1200 -Quality 85
 ```
 
-既定では `{MaxSize}` フォルダ（例: `1200\`）へ出力します。元ファイルを上書きする場合は `-InPlace`、退避してから上書きする場合は `-InPlace -Backup` を使います。
+| 主なオプション | 意味 |
+|---|---|
+| `-Path <dir>` | 対象フォルダ（省略時は `.cmd` のあるフォルダ） |
+| `-MaxSize <px>` | 長辺の最大ピクセル（非対話時は必須） |
+| `-Quality <1-100>` | JPEG 品質（省略時 85） |
+| `-NonInteractive` | メニュー・確認なし |
+| `-InPlace` | 元ファイルを上書き |
+| `-Backup` | `-InPlace` 時、`originals\` に退避してから上書き |
 
 ## ライセンス
 

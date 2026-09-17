@@ -1,4 +1,29 @@
-﻿<#
+﻿@echo off
+setlocal EnableExtensions
+REM Single-file GUI launcher (PowerShell embedded below).
+set "RESIZE_IMAGES_GUI=1"
+REM Default target dir = folder containing this .cmd (overridable via -Path).
+REM Do NOT pass -Path here: user -Path in %* would bind twice and fail.
+set "RESIZE_IMAGES_ROOT=%~dp0."
+set "TMPPS1=%TEMP%\Resize-Images-%RANDOM%%RANDOM%.ps1"
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$a=Get-Content -LiteralPath '%~f0' -Encoding UTF8; $n=-1; for($i=0;$i -lt $a.Count;$i++){ if($a[$i] -eq '# >>>BEGIN_PS1>>>'){ $n=$i+1; break } }; if($n -lt 0){ throw 'embedded script not found' }; Set-Content -LiteralPath $env:TMPPS1 -Value $a[$n..($a.Length-1)] -Encoding UTF8"
+if errorlevel 1 (
+  echo Failed to extract embedded script.
+  pause
+  exit /b 1
+)
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%TMPPS1%" %*
+set "EC=%ERRORLEVEL%"
+del /f /q "%TMPPS1%" >nul 2>&1
+echo.
+if not "%EC%"=="0" echo Exit code: %EC%
+pause
+exit /b %EC%
+
+# >>>BEGIN_PS1>>>
+<#
 .SYNOPSIS
   フォルダ内の画像を、指定ピクセルに収まるようリサイズする。
 
@@ -7,9 +32,9 @@
   出力はサイズ名フォルダ（例: 1200）へ保存。ImageMagick が無ければ winget で導入。
 
 .EXAMPLE
-  .\Resize-Images.ps1
-  .\Resize-Images.ps1 -Help
-  .\Resize-Images.ps1 -NonInteractive -MaxSize 1200 -Quality 85
+  .\Resize-Images.cmd
+  .\Resize-Images.cmd -Help
+  .\Resize-Images.cmd -NonInteractive -MaxSize 1200 -Quality 85
 #>
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = "Low")]
 param(
@@ -45,12 +70,12 @@ $ErrorActionPreference = "Stop"
 function Show-Help {
   @"
 
-Resize-Images.ps1 - 画像を長辺 MaxSize に収まるようリサイズ
+Resize-Images.cmd - 画像を長辺 MaxSize に収まるようリサイズ
 
 使い方:
-  .\Resize-Images.ps1                          対話モード（既定）
-  .\Resize-Images.ps1 -Help                    このヘルプ
-  .\Resize-Images.ps1 -NonInteractive -MaxSize 1200 [-Quality 85]
+  .\Resize-Images.cmd                          対話モード（既定）
+  .\Resize-Images.cmd -Help                    このヘルプ
+  .\Resize-Images.cmd -NonInteractive -MaxSize 1200 [-Quality 85]
 
 オプション:
   -Help, -h              ヘルプを表示して終了
@@ -71,11 +96,11 @@ Resize-Images.ps1 - 画像を長辺 MaxSize に収まるようリサイズ
   3) 確認後、{MaxSize}\ フォルダへ出力
 
 例:
-  .\Resize-Images.ps1
-  .\Resize-Images.ps1 -MaxSize 1200
-  .\Resize-Images.ps1 -MaxSize 800 -Quality 90
-  .\Resize-Images.ps1 -NonInteractive -MaxSize 1920 -Quality 85
-  .\Resize-Images.ps1 -InPlace -Backup -MaxSize 1200 -Quality 85 -NonInteractive
+  .\Resize-Images.cmd
+  .\Resize-Images.cmd -MaxSize 1200
+  .\Resize-Images.cmd -MaxSize 800 -Quality 90
+  .\Resize-Images.cmd -NonInteractive -MaxSize 1920 -Quality 85
+  .\Resize-Images.cmd -InPlace -Backup -MaxSize 1200 -Quality 85 -NonInteractive
 
 "@ | Write-Host
 }
@@ -119,17 +144,21 @@ function Get-ImageSize {
     [Parameter(Mandatory = $true)][string]$FilePath
   )
   $mp = ConvertTo-MagickPath -PathValue $FilePath
-  $result = Invoke-NativeMagick -MagickExe $MagickExe -Arguments @("identify", "-ping", "-format", "%w %h", $mp)
+  # [0] = first frame only. Without it, multi-frame GIF/TIFF concatenate
+  # "%w %h" per frame (e.g. "80 8080 80") and height is misread.
+  $result = Invoke-NativeMagick -MagickExe $MagickExe -Arguments @(
+    "identify", "-ping", "-format", "%w %h", "${mp}[0]"
+  )
   if ($result.ExitCode -ne 0) {
     throw "identify 失敗 (exit=$($result.ExitCode)): $($result.Output)"
   }
-  $line = ($result.Output | Out-String).Trim() -split "[\r\n]+" |
-    Where-Object { $_ -match '\d+\s+\d+' } |
-    Select-Object -First 1
+  $line = (($result.Output | Out-String).Trim() -split "[\r\n]+" |
+    Where-Object { $_ -match '^\d+\s+\d+$' } |
+    Select-Object -First 1)
   if (-not $line) {
     throw "サイズ取得失敗: $($result.Output)"
   }
-  $m = [regex]::Match($line, '(\d+)\s+(\d+)')
+  $m = [regex]::Match($line, '^(\d+)\s+(\d+)$')
   if (-not $m.Success) {
     throw "サイズ解析失敗: $line"
   }
@@ -427,8 +456,14 @@ if ($Help) {
 }
 
 if ([string]::IsNullOrWhiteSpace($Path)) {
-  if ($PSScriptRoot) { $Path = $PSScriptRoot }
-  else { $Path = (Get-Location).Path }
+  # Launcher sets RESIZE_IMAGES_ROOT to the .cmd folder (extracted .ps1 lives in %TEMP%).
+  if (-not [string]::IsNullOrWhiteSpace($env:RESIZE_IMAGES_ROOT)) {
+    $Path = $env:RESIZE_IMAGES_ROOT
+  } elseif ($PSScriptRoot) {
+    $Path = $PSScriptRoot
+  } else {
+    $Path = (Get-Location).Path
+  }
 }
 
 if (-not (Test-Path -LiteralPath $Path)) {
@@ -479,7 +514,7 @@ if ($isInteractive) {
   }
 } else {
   if ($MaxSize -le 0) {
-    throw "非対話モードでは -MaxSize に 1 以上を指定してください。ヘルプ: .\Resize-Images.ps1 -Help"
+    throw "非対話モードでは -MaxSize に 1 以上を指定してください。ヘルプ: .\Resize-Images.cmd -Help"
   }
   if ($Quality -le 0) {
     $Quality = 85
