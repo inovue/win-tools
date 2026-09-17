@@ -1,0 +1,50 @@
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Secrets / local env
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+secrets/
+
+# PowerShell
+*.ps1xml.bak
+
+# Resize-Images.ps1 の出力・退避
+originals/
+[0-9]/
+[0-9][0-9]/
+[0-9][0-9][0-9]/
+[0-9][0-9][0-9][0-9]/
+[0-9][0-9][0-9][0-9][0-9]/
+
+# 作業用画像（誤コミット防止）
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tif
+*.tiff
+*.webp
+!docs/**/*.png
+!docs/**/*.jpg
+
+# Logs / temp
+*.log
+*.tmp
+*.temp
+~$*
