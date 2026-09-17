@@ -23,7 +23,7 @@ secrets/
 # PowerShell
 *.ps1xml.bak
 
-# Resize-Images.ps1 の出力・退避
+# Resize-Images の出力・退避
 originals/
 [0-9]/
 [0-9][0-9]/

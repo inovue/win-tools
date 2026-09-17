@@ -1,0 +1,10 @@
+# Windows scripts must be stored as CRLF in the repo.
+# GitHub "Download ZIP" / raw blobs serve the committed bytes as-is.
+# `text eol=crlf` only converts on git checkout — ZIP users still get LF,
+# and cmd.exe then fails (merges lines, runs embedded PowerShell as batch).
+*.cmd -text
+*.bat -text
+*.ps1 -text
+*.vbs -text
+*.wsf -text
+*.reg -text
